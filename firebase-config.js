@@ -1,9 +1,9 @@
-// Firebase 콘솔에서 복사한 설정을 여기에 붙여넣으세요. (SETUP.md 3단계)
+// typing-contest-321a0 프로젝트 설정
 export const firebaseConfig = {
-  apiKey: "여기에-붙여넣기",
-  authDomain: "프로젝트이름.firebaseapp.com",
-  projectId: "프로젝트이름",
-  storageBucket: "프로젝트이름.firebasestorage.app",
-  messagingSenderId: "000000000000",
-  appId: "1:000000000000:web:0000000000000000000000"
+  apiKey: "AIzaSyBgqDpg97F_q1Rq5DZIv8I6zCQ3xZf0Ilc",
+  authDomain: "typing-contest-321a0.firebaseapp.com",
+  projectId: "typing-contest-321a0",
+  storageBucket: "typing-contest-321a0.firebasestorage.app",
+  messagingSenderId: "71301983792",
+  appId: "1:71301983792:web:702d59756cb09815dcc7f5"
 };
