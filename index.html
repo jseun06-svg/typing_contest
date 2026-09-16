@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>타자 대회</title>
+<style>
+  :root {
+    --ink: #0e1526; --lane: #18213a; --edge: #2a3554; --chalk: #eef2fa;
+    --mute: #8794b0; --lime: #c9f24e; --sky: #5ab6f7; --clay: #ff7d5c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px 20px 48px; background: var(--ink); color: var(--chalk);
+    font-family: 'Pretendard', 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif;
+    font-size: 17px; line-height: 1.6; display: flex; justify-content: center;
+  }
+  .wrap { width: 100%; max-width: 780px; }
+  h1 { font-size: 26px; font-weight: 600; margin: 0 0 4px; }
+  p.sub { color: var(--mute); margin: 0 0 24px; }
+  h2 { font-size: 16px; font-weight: 600; color: var(--mute); margin: 28px 0 8px; }
+  .screen { display: none; } .screen.on { display: block; }
+
+  input[type=text] {
+    width: 100%; padding: 14px 16px; background: var(--lane); color: var(--chalk);
+    border: 1px solid var(--edge); border-radius: 10px; font: inherit; font-size: 19px;
+    margin-bottom: 10px;
+  }
+  input:focus { outline: 2px solid var(--sky); outline-offset: 1px; }
+  input.wrong { border-color: var(--clay); background: #2a1a1c; }
+  #code { text-transform: uppercase; letter-spacing: .18em; font-weight: 600; }
+  button {
+    padding: 13px 22px; border: 0; border-radius: 10px; background: var(--lime);
+    color: #16200a; font: inherit; font-weight: 600; cursor: pointer;
+  }
+  button:disabled { opacity: .4; cursor: default; }
+  button:focus-visible { outline: 2px solid var(--sky); outline-offset: 2px; }
+  .err { color: var(--clay); min-height: 24px; font-size: 15px; }
+
+  .bar {
+    display: flex; align-items: center; gap: 14px; padding-bottom: 14px;
+    margin-bottom: 22px; border-bottom: 1px solid var(--edge);
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--lime); }
+  .dot.off { background: var(--clay); }
+  .bar .spacer { flex: 1; }
+  .stat { color: var(--mute); font-size: 15px; }
+  .stat b { color: var(--chalk); font-variant-numeric: tabular-nums; font-weight: 600; }
+
+  .sentence {
+    background: var(--lane); border: 1px solid var(--edge); border-radius: 14px;
+    padding: 26px 24px; margin-bottom: 18px; font-size: 27px; line-height: 1.85;
+    word-break: keep-all;
+  }
+  .sentence span { color: #64708c; }
+  .sentence span.hit { color: var(--lime); }
+  .sentence span.bad { color: var(--clay); background: rgba(255,125,92,.16); border-radius: 3px; }
+  .sentence span.cur { color: var(--chalk); box-shadow: inset 0 -3px 0 var(--sky); }
+
+  .track { height: 6px; background: var(--lane); border-radius: 3px; overflow: hidden; margin: 18px 0 6px; }
+  .track > i { display: block; height: 100%; width: 0; background: var(--lime); transition: width .12s linear; }
+
+  .count { text-align: center; padding: 64px 0; }
+  .count b { font-size: 92px; font-weight: 600; color: var(--lime); font-variant-numeric: tabular-nums; }
+
+  .card {
+    background: var(--lane); border: 1px solid var(--edge); border-left: 4px solid var(--lime);
+    border-radius: 0 14px 14px 0; padding: 22px 24px; margin-bottom: 20px;
+  }
+  .card.miss { border-left-color: var(--clay); }
+  .card .rank { font-size: 44px; font-weight: 600; color: var(--lime); font-variant-numeric: tabular-nums; }
+  .card.miss .rank { color: var(--clay); font-size: 22px; }
+  .card .rank small { font-size: 18px; color: var(--mute); font-weight: 400; margin-left: 6px; }
+
+  ol.board { list-style: none; margin: 0; padding: 0; }
+  ol.board li {
+    display: flex; align-items: baseline; gap: 14px; padding: 11px 4px;
+    border-bottom: 1px solid var(--edge); font-variant-numeric: tabular-nums;
+  }
+  ol.board li.me { color: var(--lime); }
+  ol.board .n { width: 32px; color: var(--mute); }
+  ol.board .nm { flex: 1; font-weight: 600; }
+  ol.board .tm { color: var(--mute); font-size: 15px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chips span {
+    background: rgba(90,182,247,.14); border: 1px solid var(--edge);
+    border-radius: 999px; padding: 4px 12px; font-size: 14px;
+  }
+  .note { color: var(--mute); font-size: 15px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <section id="s-join" class="screen on">
+    <h1>타자 대회</h1>
+    <p class="sub">선생님이 알려준 대회 코드와 이름을 넣으면 참가됩니다.</p>
+    <input type="text" id="code" maxlength="6" placeholder="대회 코드 (예: K7QM2X)" autocomplete="off">
+    <input type="text" id="name" maxlength="12" placeholder="이름" autocomplete="off">
+    <p class="err" id="join-err"></p>
+    <button id="btn-join">참가하기</button>
+  </section>
+
+  <section id="s-play" class="screen">
+    <div class="bar">
+      <span class="dot" id="dot"></span>
+      <span id="who"></span>
+      <span class="spacer"></span>
+      <span class="stat"><b id="live-cpm">0</b> 타/분</span>
+      <span class="stat"><b id="live-time">0.0</b> 초</span>
+    </div>
+
+    <div id="lobby">
+      <h1 id="lobby-title">대기 중</h1>
+      <p class="sub" id="lobby-sub">선생님이 문장을 보내면 바로 시작합니다. 손을 자판에 올려두세요.</p>
+      <h2>참가자</h2>
+      <div class="chips" id="roster"></div>
+    </div>
+
+    <div id="countdown" class="count" hidden><b>3</b></div>
+
+    <div id="race" hidden>
+      <div class="sentence" id="sentence"></div>
+      <input type="text" id="typing" autocomplete="off" autocorrect="off"
+             autocapitalize="off" spellcheck="false" placeholder="여기에 입력하세요">
+      <div class="track"><i id="track"></i></div>
+      <p class="err" id="race-err"></p>
+    </div>
+
+    <div id="result" hidden>
+      <div class="card" id="result-card">
+        <div class="rank" id="result-rank"></div>
+        <div id="result-detail" class="stat"></div>
+      </div>
+    </div>
+
+    <h2 id="t-round" hidden>이번 라운드</h2>
+    <ol class="board" id="board-round"></ol>
+
+    <h2 id="t-total" hidden>종합 순위</h2>
+    <ol class="board" id="board-total"></ol>
+  </section>
+
+</div>
+
+<script type="module">
+import { db, signIn } from './firebase-init.js';
+import {
+  doc, collection, onSnapshot, setDoc, updateDoc, getDoc, serverTimestamp, query, where
+} from 'https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js';
+import { cpm, isPartialOf, nfc } from './hangul.js';
+
+const $ = id => document.getElementById(id);
+
+let uid = null, code = null, myName = '';
+let contest = null, roundNo = 0, target = '';
+let chars = [], startedAt = 0, composing = false, lastGood = '', finished = false;
+let blockOnError = true, ticker = null, unsubResults = null;
+
+// ── 참가 ──────────────────────────────────────────────
+$('btn-join').onclick = join;
+$('name').addEventListener('keydown', e => { if (e.key === 'Enter') join(); });
+
+const params = new URLSearchParams(location.search);
+if (params.get('c')) $('code').value = params.get('c').toUpperCase();
+$('name').value = localStorage.getItem('tc_name') || '';
+
+async function join() {
+  const c = $('code').value.trim().toUpperCase();
+  const n = $('name').value.trim();
+  if (!c || !n) { $('join-err').textContent = '코드와 이름을 모두 입력하세요.'; return; }
+
+  $('btn-join').disabled = true;
+  try {
+    const user = await signIn();
+    uid = user.uid;
+    const snap = await getDoc(doc(db, 'contests', c));
+    if (!snap.exists()) throw new Error('그런 코드의 대회가 없어요. 다시 확인해주세요.');
+
+    code = c; myName = n;
+    localStorage.setItem('tc_name', n);
+    const pref = doc(db, 'contests', code, 'players', uid);
+    const mine = await getDoc(pref);
+    if (mine.exists()) await updateDoc(pref, { name: n });
+    else await setDoc(pref, { name: n, joinedAt: serverTimestamp(), points: 0 });
+
+    $('who').textContent = n;
+    $('s-join').classList.remove('on');
+    $('s-play').classList.add('on');
+    watch();
+  } catch (e) {
+    $('join-err').textContent = e.message || '참가하지 못했어요.';
+    $('btn-join').disabled = false;
+  }
+}
+
+// ── 실시간 구독 ───────────────────────────────────────
+function watch() {
+  onSnapshot(doc(db, 'contests', code), s => {
+    $('dot').classList.remove('off');
+    if (!s.exists()) return;
+    applyContest(s.data());
+  }, () => $('dot').classList.add('off'));
+
+  onSnapshot(collection(db, 'contests', code, 'players'), s => {
+    const list = s.docs.map(d => ({ id: d.id, ...d.data() }));
+    $('roster').textContent = '';
+    list.slice().sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ko')).forEach(p => {
+      const el = document.createElement('span');
+      el.textContent = p.name;
+      $('roster').appendChild(el);
+    });
+    const totals = list.filter(p => p.points > 0)
+      .sort((a, b) => b.points - a.points)
+      .map((p, i) => ({ rank: i + 1, id: p.id, name: p.name, extra: p.points + '점' }));
+    render($('board-total'), $('t-total'), totals);
+  });
+}
+
+function applyContest(c) {
+  contest = c;
+  blockOnError = c.blockOnError !== false;
+
+  if (c.roundNo !== roundNo) {
+    roundNo = c.roundNo;
+    watchResults();
+    if (c.status === 'racing') beginRound(c);
+    else showLobby(c);
+  } else if (c.status !== 'racing' && !finished) {
+    showLobby(c);
+  }
+
+  if (c.status === 'done') {
+    $('lobby-title').textContent = '대회가 끝났습니다';
+    $('lobby-sub').textContent = '수고했어요. 아래에서 종합 순위를 확인하세요.';
+  }
+}
+
+function watchResults() {
+  if (unsubResults) unsubResults();
+  const q = query(collection(db, 'contests', code, 'results'), where('roundNo', '==', roundNo));
+  unsubResults = onSnapshot(q, s => {
+    const list = s.docs.map(d => d.data())
+      .sort((a, b) => a.ms - b.ms)
+      .map((r, i) => ({
+        rank: i + 1, id: r.uid, name: r.name,
+        extra: (r.ms / 1000).toFixed(2) + '초 · ' + r.cpm + '타'
+      }));
+    render($('board-round'), $('t-round'), list);
+  });
+}
+
+function render(ol, title, list) {
+  title.hidden = list.length === 0;
+  ol.textContent = '';
+  list.forEach(r => {
+    const li = document.createElement('li');
+    if (r.id === uid) li.className = 'me';
+    const n = document.createElement('span'); n.className = 'n'; n.textContent = r.rank;
+    const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = r.name;
+    const tm = document.createElement('span'); tm.className = 'tm'; tm.textContent = r.extra;
+    li.append(n, nm, tm);
+    ol.appendChild(li);
+  });
+}
+
+// ── 라운드 ────────────────────────────────────────────
+function showLobby(c) {
+  stopTicker();
+  $('lobby').hidden = false;
+  $('countdown').hidden = true;
+  $('race').hidden = true;
+  if (c.status === 'roundOver') {
+    $('lobby-title').textContent = roundNo + '라운드 종료';
+    $('lobby-sub').textContent = '다음 문장을 기다리는 중입니다.';
+  } else if (c.status === 'lobby') {
+    $('lobby-title').textContent = '대기 중';
+    $('lobby-sub').textContent = '선생님이 문장을 보내면 바로 시작합니다. 손을 자판에 올려두세요.';
+  }
+}
+
+function beginRound(c) {
+  target = c.text;
+  finished = false; lastGood = ''; startedAt = 0;
+  $('typing').value = '';
+  $('typing').disabled = true;
+  $('typing').classList.remove('wrong');
+  $('race-err').textContent = '';
+  $('track').style.width = '0';
+  $('live-cpm').textContent = '0';
+  $('live-time').textContent = '0.0';
+  $('result').hidden = true;
+  $('lobby').hidden = true;
+  $('race').hidden = true;
+
+  paint();
+
+  let n = c.countdown ?? 3;
+  if (n > 0) {
+    $('countdown').hidden = false;
+    $('countdown').firstElementChild.textContent = n;
+    const iv = setInterval(() => {
+      n -= 1;
+      if (n > 0) { $('countdown').firstElementChild.textContent = n; return; }
+      clearInterval(iv);
+      $('countdown').hidden = true;
+      go();
+    }, 1000);
+  } else go();
+
+  function go() {
+    $('race').hidden = false;
+    $('typing').disabled = false;
+    $('typing').focus();
+  }
+}
+
+function paint() {
+  const box = $('sentence');
+  box.textContent = '';
+  chars = [];
+  for (const ch of target) {
+    const sp = document.createElement('span');
+    sp.textContent = ch === ' ' ? '\u00a0' : ch;
+    box.appendChild(sp);
+    chars.push(sp);
+  }
+  if (chars[0]) chars[0].className = 'cur';
+}
+
+// ── 타이핑 판정 ───────────────────────────────────────
+const field = $('typing');
+field.addEventListener('compositionstart', () => { composing = true; });
+field.addEventListener('compositionend', () => { composing = false; evaluate(); });
+field.addEventListener('input', evaluate);
+// 붙여넣기로 한 번에 끝내는 것을 막는다.
+field.addEventListener('paste', e => e.preventDefault());
+field.addEventListener('drop', e => e.preventDefault());
+
+function evaluate() {
+  if (finished || !contest || contest.status !== 'racing') return;
+  let v = nfc(field.value);
+
+  if (!startedAt && v.length > 0) { startedAt = performance.now(); startTicker(); }
+
+  const solid = composing ? v.length - 1 : v.length;
+  let badAt = -1;
+  for (let i = 0; i < solid; i++) {
+    if (i >= target.length || v[i] !== target[i]) { badAt = i; break; }
+  }
+  if (badAt === -1 && composing && v.length > 0) {
+    const last = v.length - 1;
+    if (last >= target.length || !isPartialOf(v[last], target[last])) badAt = last;
+  }
+
+  if (badAt === -1) lastGood = v;
+  if (badAt !== -1 && blockOnError && !composing) {
+    field.value = lastGood; v = lastGood; badAt = -1;
+    field.classList.add('wrong');
+    setTimeout(() => field.classList.remove('wrong'), 180);
+  }
+
+  const matched = badAt === -1 ? v.length : badAt;
+  field.classList.toggle('wrong', badAt !== -1);
+  chars.forEach((sp, i) => {
+    const cls = i < matched ? 'hit' : (badAt !== -1 && i === badAt) ? 'bad' : i === matched ? 'cur' : '';
+    if (sp.className !== cls) sp.className = cls;
+  });
+  $('track').style.width = Math.round(matched / target.length * 100) + '%';
+
+  if (v === target) finish();
+}
+
+function startTicker() {
+  stopTicker();
+  ticker = setInterval(() => {
+    const ms = performance.now() - startedAt;
+    $('live-time').textContent = (ms / 1000).toFixed(1);
+    $('live-cpm').textContent = cpm(nfc(field.value), ms);
+  }, 100);
+}
+function stopTicker() { if (ticker) { clearInterval(ticker); ticker = null; } }
+
+async function finish() {
+  finished = true;
+  stopTicker();
+  const ms = Math.round(performance.now() - startedAt);
+  field.disabled = true;
+  $('live-time').textContent = (ms / 1000).toFixed(2);
+  $('live-cpm').textContent = cpm(target, ms);
+
+  const card = $('result-card');
+  $('result').hidden = false;
+
+  try {
+    await setDoc(doc(db, 'contests', code, 'results', roundNo + '__' + uid), {
+      uid, name: myName, roundNo, ms, cpm: cpm(target, ms),
+      text: target, at: serverTimestamp()
+    });
+    card.classList.remove('miss');
+    $('result-rank').innerHTML = '완주<small>기록 접수됨</small>';
+    $('result-detail').textContent = (ms / 1000).toFixed(2) + '초 · ' + cpm(target, ms) + '타';
+  } catch (e) {
+    card.classList.add('miss');
+    $('result-rank').textContent = '기록 없음';
+    $('result-detail').textContent = '기록이 접수되지 않았어요. 인터넷 연결을 확인해주세요.';
+  }
+}
+</script>
+</body>
+</html>

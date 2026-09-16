@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>타자 대회 · 진행</title>
+<style>
+  :root {
+    --ink: #0e1526; --lane: #18213a; --edge: #2a3554; --chalk: #eef2fa;
+    --mute: #8794b0; --lime: #c9f24e; --sky: #5ab6f7; --clay: #ff7d5c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 22px 26px 50px; background: var(--ink); color: var(--chalk);
+    font-family: 'Pretendard', 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif;
+    font-size: 16px; line-height: 1.6;
+  }
+  .screen { display: none; } .screen.on { display: block; }
+  h1 { font-size: 22px; font-weight: 600; margin: 0; }
+  h2 { font-size: 15px; font-weight: 600; color: var(--mute); margin: 0 0 10px; }
+  h3 { font-size: 16px; font-weight: 600; margin: 0 0 4px; }
+
+  header {
+    display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+    padding-bottom: 16px; margin-bottom: 22px; border-bottom: 1px solid var(--edge);
+  }
+  header .spacer { flex: 1; }
+  .plate {
+    background: var(--lane); border: 1px solid var(--edge); border-radius: 10px;
+    padding: 8px 16px; font-size: 24px; font-weight: 600; color: var(--lime);
+    font-variant-numeric: tabular-nums; letter-spacing: .1em;
+  }
+  .plate span { font-size: 13px; color: var(--mute); font-weight: 400; display: block; letter-spacing: 0; }
+  .plate.blue { color: var(--sky); letter-spacing: 0; }
+
+  .cols { display: grid; grid-template-columns: minmax(320px, 420px) 1fr; gap: 30px; align-items: start; }
+  @media (max-width: 900px) { .cols { grid-template-columns: 1fr; } }
+
+  textarea, input[type=text] {
+    width: 100%; padding: 12px 14px; background: var(--lane); color: var(--chalk);
+    border: 1px solid var(--edge); border-radius: 10px; font: inherit; resize: vertical;
+  }
+  textarea:focus, input:focus { outline: 2px solid var(--sky); outline-offset: 1px; }
+  button {
+    padding: 12px 20px; border: 0; border-radius: 10px; background: var(--lime);
+    color: #16200a; font: inherit; font-weight: 600; cursor: pointer;
+  }
+  button.ghost { background: transparent; color: var(--mute); border: 1px solid var(--edge); }
+  button:disabled { opacity: .4; cursor: default; }
+  button:focus-visible { outline: 2px solid var(--sky); outline-offset: 2px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+  .err { color: var(--clay); min-height: 22px; font-size: 14px; }
+  .note { color: var(--mute); font-size: 14px; }
+
+  .panel {
+    background: var(--lane); border: 1px solid var(--edge); border-radius: 12px;
+    padding: 16px 18px; margin-top: 22px;
+  }
+  .presets { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+  .presets button {
+    background: var(--lane); color: var(--mute); border: 1px solid var(--edge);
+    padding: 6px 11px; font-size: 13px; font-weight: 400; border-radius: 999px;
+  }
+  .presets button:hover { color: var(--chalk); border-color: var(--sky); }
+  .opt { display: flex; align-items: center; gap: 9px; color: var(--mute); font-size: 14px; margin-top: 14px; }
+  .opt input { accent-color: var(--lime); }
+  .opt select {
+    background: var(--lane); color: var(--chalk); border: 1px solid var(--edge);
+    border-radius: 7px; padding: 4px 8px; font: inherit; font-size: 14px;
+  }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .chips span {
+    background: rgba(90,182,247,.14); border: 1px solid var(--edge);
+    border-radius: 999px; padding: 4px 12px; font-size: 14px;
+  }
+  .chips span.done { background: rgba(201,242,78,.16); color: var(--lime); }
+
+  .tabs { display: flex; gap: 6px; margin-bottom: 12px; }
+  .tabs button {
+    background: transparent; color: var(--mute); border: 1px solid var(--edge);
+    padding: 7px 15px; font-size: 14px; font-weight: 400;
+  }
+  .tabs button.on { background: var(--lane); color: var(--chalk); border-color: var(--sky); }
+
+  ol.board { list-style: none; margin: 0; padding: 0; }
+  ol.board li {
+    display: flex; align-items: baseline; gap: 18px; padding: 14px 10px;
+    border-bottom: 1px solid var(--edge); font-size: 30px;
+    font-variant-numeric: tabular-nums; opacity: 0;
+    animation: slide .34s cubic-bezier(.2,.8,.3,1) forwards;
+  }
+  @keyframes slide { from { opacity: 0; transform: translateX(-22px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { ol.board li { animation: none; opacity: 1; } }
+  ol.board .n { width: 62px; color: var(--mute); font-size: 23px; }
+  ol.board li:first-child .n { color: var(--lime); }
+  ol.board .nm { flex: 1; font-weight: 600; }
+  ol.board .tm { font-size: 21px; color: var(--mute); }
+  ol.board .cp { font-size: 21px; color: var(--sky); width: 120px; text-align: right; }
+  .empty { color: var(--mute); padding: 26px 0; }
+
+  #s-start { max-width: 420px; margin: 12vh auto 0; }
+</style>
+</head>
+<body>
+
+<section id="s-start" class="screen on">
+  <h1>타자 대회 진행</h1>
+  <p class="note">대회를 새로 열거나, 진행 중이던 대회 코드를 입력해 이어서 진행합니다.</p>
+  <div class="row"><button id="btn-new">새 대회 열기</button></div>
+  <div class="panel">
+    <h3>이어서 진행</h3>
+    <p class="note">이 브라우저에서 만든 대회만 이어받을 수 있습니다.</p>
+    <input type="text" id="resume" maxlength="6" placeholder="대회 코드" autocomplete="off">
+    <div class="row"><button class="ghost" id="btn-resume">이어서 진행</button></div>
+  </div>
+  <p class="err" id="start-err"></p>
+</section>
+
+<section id="s-main" class="screen">
+  <header>
+    <h1>타자 대회</h1>
+    <div class="plate" id="code-plate">------<span>대회 코드</span></div>
+    <div class="plate blue" id="link-plate" style="font-size:16px">-<span>학생 접속 주소</span></div>
+    <div class="spacer"></div>
+    <div class="plate blue" id="count-plate">0<span>참가자</span></div>
+  </header>
+
+  <div class="cols">
+    <div>
+      <h2>보낼 문장</h2>
+      <textarea id="text" rows="3" placeholder="학생 화면에 띄울 문장을 입력하세요"></textarea>
+      <div class="presets" id="presets"></div>
+      <div class="row" id="controls"></div>
+      <p class="err" id="err"></p>
+
+      <label class="opt">
+        <input type="checkbox" id="opt-block" checked>
+        오타가 나면 더 못 치게 막기
+      </label>
+      <label class="opt">
+        시작 카운트다운
+        <select id="opt-count">
+          <option value="0">없음</option>
+          <option value="3" selected>3초</option>
+          <option value="5">5초</option>
+        </select>
+      </label>
+
+      <div class="panel">
+        <h3>완주 현황</h3>
+        <p class="note" id="done-note">-</p>
+        <div class="chips" id="chips"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="tabs">
+        <button id="tab-round" class="on">이번 라운드</button>
+        <button id="tab-total">종합 순위</button>
+      </div>
+      <ol class="board" id="board"></ol>
+      <p class="empty" id="empty">아직 완주한 학생이 없습니다.</p>
+    </div>
+  </div>
+</section>
+
+<script type="module">
+import { db, signIn } from './firebase-init.js';
+import {
+  doc, collection, onSnapshot, setDoc, updateDoc, getDoc,
+  serverTimestamp, query, where, writeBatch, increment
+} from 'https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js';
+import { countStrokes, nfc } from './hangul.js';
+
+const $ = id => document.getElementById(id);
+const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+const PRESETS = [
+  '오늘도 즐거운 하루가 시작되었습니다.',
+  '바른 자세로 앉아 손을 자판 위에 올려놓습니다.',
+  '가는 말이 고와야 오는 말이 곱다.',
+  '티끌 모아 태산이라는 말이 있습니다.',
+  '독서는 마음의 양식이며 지혜의 샘입니다.',
+  'The quick brown fox jumps over the lazy dog.'
+];
+
+let uid = null, code = null, contest = null;
+let players = [], results = [], view = 'round';
+let unsubResults = null;
+
+// ── 대회 열기 / 이어받기 ──────────────────────────────
+$('btn-new').onclick = createContest;
+$('btn-resume').onclick = resumeContest;
+$('resume').value = localStorage.getItem('tc_host_code') || '';
+
+async function createContest() {
+  $('btn-new').disabled = true;
+  try {
+    uid = (await signIn()).uid;
+    let c;
+    for (let i = 0; i < 5; i++) {
+      c = Array.from({ length: 6 }, () => CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)]).join('');
+      if (!(await getDoc(doc(db, 'contests', c))).exists()) break;
+    }
+    await setDoc(doc(db, 'contests', c), {
+      hostUid: uid, createdAt: serverTimestamp(), status: 'lobby',
+      roundNo: 0, text: '', minMs: 0, countdown: 3, blockOnError: true
+    });
+    code = c;
+    localStorage.setItem('tc_host_code', c);
+    openMain();
+  } catch (e) {
+    $('start-err').textContent = msg(e);
+    $('btn-new').disabled = false;
+  }
+}
+
+async function resumeContest() {
+  const c = $('resume').value.trim().toUpperCase();
+  if (!c) { $('start-err').textContent = '대회 코드를 입력하세요.'; return; }
+  try {
+    uid = (await signIn()).uid;
+    const snap = await getDoc(doc(db, 'contests', c));
+    if (!snap.exists()) throw new Error('그런 코드의 대회가 없습니다.');
+    if (snap.data().hostUid !== uid) throw new Error('이 브라우저에서 만든 대회가 아닙니다.');
+    code = c;
+    localStorage.setItem('tc_host_code', c);
+    openMain();
+  } catch (e) {
+    $('start-err').textContent = msg(e);
+  }
+}
+
+function msg(e) {
+  const t = e.message || String(e);
+  if (t.includes('permission')) return '권한이 없습니다. Firestore 보안 규칙을 배포했는지 확인하세요.';
+  if (t.includes('api-key') || t.includes('invalid-api-key')) return 'firebase-config.js 설정이 비어 있거나 잘못됐습니다.';
+  return t;
+}
+
+function openMain() {
+  $('s-start').classList.remove('on');
+  $('s-main').classList.add('on');
+  $('code-plate').innerHTML = code + '<span>대회 코드</span>';
+  const link = location.origin + location.pathname.replace(/host\.html$/, '') + '?c=' + code;
+  $('link-plate').innerHTML = link.replace(/^https?:\/\//, '') + '<span>학생 접속 주소</span>';
+
+  PRESETS.forEach(t => {
+    const b = document.createElement('button');
+    b.textContent = t.length > 18 ? t.slice(0, 17) + '…' : t;
+    b.title = t;
+    b.onclick = () => { $('text').value = t; $('text').focus(); };
+    $('presets').appendChild(b);
+  });
+
+  $('opt-block').onchange = () => update({ blockOnError: $('opt-block').checked });
+  $('opt-count').onchange = () => update({ countdown: Number($('opt-count').value) });
+  $('tab-round').onclick = () => { view = 'round'; renderBoard(); };
+  $('tab-total').onclick = () => { view = 'total'; renderBoard(); };
+
+  watch();
+}
+
+const update = data => updateDoc(doc(db, 'contests', code), data).catch(e => $('err').textContent = msg(e));
+
+// ── 실시간 구독 ───────────────────────────────────────
+function watch() {
+  onSnapshot(doc(db, 'contests', code), s => {
+    if (!s.exists()) return;
+    const prev = contest;
+    contest = s.data();
+    $('opt-block').checked = contest.blockOnError !== false;
+    $('opt-count').value = String(contest.countdown ?? 3);
+    if (!prev || prev.roundNo !== contest.roundNo) watchResults();
+    renderControls();
+    renderChips();
+  });
+
+  onSnapshot(collection(db, 'contests', code, 'players'), s => {
+    players = s.docs.map(d => ({ id: d.id, ...d.data() }));
+    $('count-plate').innerHTML = players.length + '<span>참가자</span>';
+    renderChips();
+    renderBoard();
+  });
+}
+
+function watchResults() {
+  if (unsubResults) unsubResults();
+  const q = query(collection(db, 'contests', code, 'results'), where('roundNo', '==', contest.roundNo));
+  unsubResults = onSnapshot(q, s => {
+    results = s.docs.map(d => d.data()).sort((a, b) => a.ms - b.ms);
+    renderChips();
+    renderBoard();
+  });
+}
+
+// ── 진행 제어 ─────────────────────────────────────────
+function btn(label, ghost, fn) {
+  const b = document.createElement('button');
+  b.textContent = label;
+  if (ghost) b.className = 'ghost';
+  b.onclick = fn;
+  return b;
+}
+
+function renderControls() {
+  const box = $('controls');
+  box.textContent = '';
+  const st = contest.status;
+
+  if (st === 'lobby' || st === 'roundOver') {
+    box.appendChild(btn(contest.roundNo === 0 ? '1라운드 시작' : (contest.roundNo + 1) + '라운드 시작', false, startRound));
+    if (contest.roundNo > 0) box.appendChild(btn('대회 끝내기', true, () => {
+      if (confirm('대회를 끝낼까요? 종합 순위는 그대로 남습니다.')) update({ status: 'done' });
+    }));
+  } else if (st === 'racing') {
+    box.appendChild(btn('라운드 마감하고 점수 주기', false, closeRound));
+  } else if (st === 'done') {
+    box.appendChild(btn('다시 열기', true, () => update({ status: 'roundOver' })));
+  }
+}
+
+async function startRound() {
+  const text = nfc($('text').value).replace(/\s+/g, ' ').trim();
+  if (!text) { $('err').textContent = '문장을 입력하세요.'; return; }
+  if (text.length > 200) { $('err').textContent = '문장은 200자까지 가능합니다.'; return; }
+  $('err').textContent = '';
+  await update({
+    status: 'racing',
+    roundNo: contest.roundNo + 1,
+    text,
+    minMs: countStrokes(text) * 25,
+    countdown: Number($('opt-count').value),
+    blockOnError: $('opt-block').checked
+  });
+}
+
+async function closeRound() {
+  await update({ status: 'roundOver' });
+  if (!results.length) return;
+  // 순위 점수: 1등 20점, 2등 19점 … 최소 1점. 완주하지 못하면 0점.
+  const batch = writeBatch(db);
+  results.forEach((r, i) => {
+    batch.update(doc(db, 'contests', code, 'players', r.uid), {
+      points: increment(Math.max(1, 21 - (i + 1)))
+    });
+  });
+  try { await batch.commit(); }
+  catch (e) { $('err').textContent = msg(e); }
+}
+
+// ── 화면 ──────────────────────────────────────────────
+function renderChips() {
+  const doneIds = new Set(results.map(r => r.uid));
+  $('done-note').textContent = contest && contest.roundNo > 0
+    ? results.length + ' / ' + players.length + '명 완주'
+    : '아직 라운드를 시작하지 않았습니다.';
+  const box = $('chips');
+  box.textContent = '';
+  players.slice().sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ko')).forEach(p => {
+    const el = document.createElement('span');
+    el.textContent = p.name;
+    if (doneIds.has(p.id)) el.className = 'done';
+    box.appendChild(el);
+  });
+}
+
+function renderBoard() {
+  $('tab-round').classList.toggle('on', view === 'round');
+  $('tab-total').classList.toggle('on', view === 'total');
+
+  const list = view === 'round'
+    ? results.map((r, i) => ({ rank: i + 1, name: r.name, a: (r.ms / 1000).toFixed(2) + '초', b: r.cpm + '타' }))
+    : players.filter(p => p.points > 0)
+        .sort((a, b) => b.points - a.points)
+        .map((p, i) => ({ rank: i + 1, name: p.name, a: '', b: p.points + '점' }));
+
+  const ol = $('board');
+  ol.textContent = '';
+  $('empty').hidden = list.length > 0;
+  $('empty').textContent = view === 'round'
+    ? '아직 완주한 학생이 없습니다.'
+    : '라운드를 마감하면 종합 순위가 쌓입니다.';
+
+  list.forEach((r, i) => {
+    const li = document.createElement('li');
+    li.style.animationDelay = (i * 0.06) + 's';
+    const n = document.createElement('span'); n.className = 'n'; n.textContent = r.rank;
+    const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = r.name;
+    const a = document.createElement('span'); a.className = 'tm'; a.textContent = r.a;
+    const b = document.createElement('span'); b.className = 'cp'; b.textContent = r.b;
+    li.append(n, nm, a, b);
+    ol.appendChild(li);
+  });
+}
+</script>
+</body>
+</html>
